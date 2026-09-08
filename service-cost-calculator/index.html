@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Service Cost Calculator</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-ai:       #2a78d6;
+    --series-human:    #eb6834;
+    --success:        #006300;
+    --card-shadow: 0 1px 2px rgba(11,11,11,0.04), 0 1px 8px rgba(11,11,11,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-ai:       #3987e5;
+      --series-human:    #d95926;
+      --success:        #0ca30c;
+      --card-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 8px rgba(0,0,0,0.3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header h1 { font-size: 26px; margin: 0 0 4px; }
+  header p.sub { color: var(--text-secondary); margin: 0 0 28px; font-size: 15px; max-width: 640px; }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    padding: 22px 24px;
+    margin-bottom: 22px;
+  }
+  .card h2 { font-size: 16px; margin: 0 0 4px; }
+  .card p.hint { color: var(--text-muted); font-size: 13px; margin: 0 0 18px; }
+
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  @media (max-width: 720px) {
+    .grid-4 { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+
+  label.field { display: block; font-size: 12.5px; color: var(--text-secondary); margin-bottom: 6px; }
+  input, select {
+    width: 100%;
+    font: inherit;
+    font-size: 14px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--baseline);
+    background: var(--page);
+    color: var(--text-primary);
+  }
+  input:focus, select:focus { outline: 2px solid var(--series-ai); outline-offset: 1px; }
+
+  fieldset { border: none; padding: 0; margin: 0; }
+  legend { font-size: 13.5px; font-weight: 600; margin-bottom: 10px; padding: 0; color: var(--text-primary); }
+
+  table { width: 100%; border-collapse: collapse; }
+  table.channels-table { min-width: 760px; }
+  .table-scroll { overflow-x: auto; }
+  th, td { text-align: left; padding: 8px 8px; font-size: 13.5px; }
+  thead th { color: var(--text-muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid var(--gridline); }
+  tbody tr { border-bottom: 1px solid var(--gridline); }
+  tbody tr:last-child { border-bottom: none; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .row-actions { display: flex; gap: 10px; margin-top: 14px; }
+
+  button {
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--baseline);
+    background: var(--surface-1);
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+  button:hover { background: var(--gridline); }
+  button.primary {
+    background: var(--series-ai);
+    border-color: var(--series-ai);
+    color: #ffffff;
+    font-size: 15px;
+    padding: 12px 22px;
+  }
+  button.primary:hover { filter: brightness(1.06); }
+  button.remove-row {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 16px;
+    padding: 2px 8px;
+    line-height: 1;
+  }
+  button.remove-row:hover { color: var(--series-human); background: transparent; }
+
+  .calc-cta { text-align: center; margin: 8px 0 30px; }
+
+  .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  @media (max-width: 720px) { .stat-tiles { grid-template-columns: repeat(2, 1fr); } }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    padding: 16px 18px;
+  }
+  .stat-tile .label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .02em; margin-bottom: 6px; }
+  .stat-tile .value { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-tile .value.ai { color: var(--series-ai); }
+  .stat-tile .value.human { color: var(--series-human); }
+
+  .legend { display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary); margin: 4px 0 16px; }
+  .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+  .bar-chart .bar-row { display: grid; grid-template-columns: 120px 1fr 90px; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .bar-chart .bar-name { font-size: 13.5px; color: var(--text-primary); }
+  .bar-chart .bar-track { position: relative; height: 20px; background: var(--gridline); border-radius: 4px; overflow: hidden; display: flex; }
+  .bar-chart .seg-ai { background: var(--series-ai); height: 100%; }
+  .bar-chart .seg-human { background: var(--series-human); height: 100%; }
+  .bar-chart .bar-total { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--text-secondary); text-align: right; }
+
+  details.assumptions summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--text-secondary); }
+  details.assumptions[open] summary { margin-bottom: 14px; }
+
+  footer.notes { font-size: 12px; color: var(--text-muted); margin-top: 30px; line-height: 1.6; }
+  footer.notes ul { margin: 6px 0 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Service Cost Calculator</h1>
+    <p class="sub">Estimate the monthly cost of running your support channels with a mix of AI automation and human agents — by conversation volume, handle time, automation potential, language and geo.</p>
+  </header>
+
+  <!-- ASSUMPTIONS -->
+  <div class="card">
+    <details class="assumptions" open>
+      <summary>Assumptions &amp; rates (editable)</summary>
+
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div>
+          <label class="field" for="aiCost">AI cost per conversation ($)</label>
+          <input type="number" id="aiCost" value="1.00" min="0" step="0.01">
+        </div>
+        <div>
+          <label class="field" for="hoursPerWeek">Work hours / week</label>
+          <input type="number" id="hoursPerWeek" value="40" min="1" step="1">
+        </div>
+        <div>
+          <label class="field" for="productivity">Productive time (%)</label>
+          <input type="number" id="productivity" value="80" min="1" max="100" step="1">
+        </div>
+        <div>
+          <label class="field" for="margin">Gross margin on labor (%)</label>
+          <input type="number" id="margin" value="40" min="0" step="1">
+        </div>
+      </div>
+
+      <fieldset>
+        <legend>Base customer service rep rate ($/hour, before margin)</legend>
+        <div class="grid-4">
+          <div>
+            <label class="field" for="rateUSA">USA</label>
+            <input type="number" id="rateUSA" value="22.00" min="0" step="0.01">
+          </div>
+          <div>
+            <label class="field" for="rateHonduras">Honduras</label>
+            <input type="number" id="rateHonduras" value="8.00" min="0" step="0.01">
+          </div>
+          <div>
+            <label class="field" for="ratePhilippines">Philippines</label>
+            <input type="number" id="ratePhilippines" value="6.00" min="0" step="0.01">
+          </div>
+          <div>
+            <label class="field" for="rateEurope">Europe</label>
+            <input type="number" id="rateEurope" value="20.00" min="0" step="0.01">
+          </div>
+        </div>
+      </fieldset>
+      <p class="hint" style="margin-top:16px; margin-bottom:0;">Defaults are approximate blended BPO/domestic benchmarks — replace with your own vendor or market rates.</p>
+    </details>
+  </div>
+
+  <!-- LANGUAGE -->
+  <div class="card">
+    <h2>Language requirements</h2>
+    <p class="hint">Languages your support team must cover. This is informational and shown in the summary — pick a geo per channel below that can staff it.</p>
+    <input type="text" id="languages" placeholder="e.g. English, Spanish, French" value="English, Spanish">
+  </div>
+
+  <!-- CHANNELS -->
+  <div class="card">
+    <h2>Channels</h2>
+    <p class="hint">Add one row per contact channel. AHT is average handle time in minutes; automation potential is the share of conversations that can be fully resolved by AI.</p>
+    <div class="table-scroll">
+      <table class="channels-table" id="channelsTable">
+        <thead>
+          <tr>
+            <th style="min-width:140px;">Channel</th>
+            <th class="num" style="min-width:110px;">Conversations / mo</th>
+            <th class="num" style="min-width:90px;">AHT (min)</th>
+            <th class="num" style="min-width:110px;">Automation %</th>
+            <th style="min-width:130px;">Geo</th>
+            <th style="width:32px;"></th>
+          </tr>
+        </thead>
+        <tbody id="channelsBody"></tbody>
+      </table>
+    </div>
+    <div class="row-actions">
+      <button type="button" id="addRow">+ Add channel</button>
+    </div>
+  </div>
+
+  <div class="calc-cta">
+    <button type="button" class="primary" id="calcBtn">Calculate monthly cost</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" hidden>
+
+    <div class="stat-tiles">
+      <div class="stat-tile">
+        <div class="label">Total monthly cost</div>
+        <div class="value" id="statTotal">$0</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">AI cost</div>
+        <div class="value ai" id="statAI">$0</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Human labor cost</div>
+        <div class="value human" id="statHuman">$0</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Recommended headcount</div>
+        <div class="value" id="statHeadcount">0</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Cost by channel</h2>
+      <p class="hint">AI cost vs. human labor cost (with margin) per channel.</p>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--series-ai)"></span>AI</span>
+        <span><span class="dot" style="background:var(--series-human)"></span>Human labor</span>
+      </div>
+      <div class="bar-chart" id="barChart"></div>
+    </div>
+
+    <div class="card">
+      <h2>Detail by channel</h2>
+      <div class="table-scroll">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th>Channel</th>
+              <th>Geo</th>
+              <th class="num">AI convos</th>
+              <th class="num">Human convos</th>
+              <th class="num">Exact FTEs</th>
+              <th class="num">Headcount</th>
+              <th class="num">AI cost</th>
+              <th class="num">Human cost</th>
+              <th class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer class="notes">
+    <strong>How this is calculated</strong>
+    <ul>
+      <li>Automated conversations = volume × automation %, billed at the AI cost per conversation.</li>
+      <li>Non-automated conversations = volume × (1 − automation %); required handle minutes = that volume × AHT.</li>
+      <li>Productive minutes per agent per month = hours/week × 4.33 weeks/month × productive time %.</li>
+      <li>FTEs required = required handle minutes ÷ productive minutes per agent; headcount is rounded up to the next whole person.</li>
+      <li>Human labor cost = headcount × (base hourly rate × hours/week × 4.33 weeks) × (1 + gross margin %). Agents are paid for full scheduled hours regardless of the productivity assumption, which only affects how much handle-time capacity each agent supplies.</li>
+    </ul>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  const DEFAULT_CHANNELS = [
+    { name: 'Phone',        volume: 4000, aht: 12, automation: 20, geo: 'USA' },
+    { name: 'Chat',         volume: 6000, aht: 8,  automation: 45, geo: 'Philippines' },
+    { name: 'Email',        volume: 3000, aht: 6,  automation: 55, geo: 'Honduras' },
+    { name: 'Social Media', volume: 1500, aht: 5,  automation: 40, geo: 'Philippines' }
+  ];
+
+  const GEOS = ['USA', 'Honduras', 'Philippines', 'Europe'];
+  const WEEKS_PER_MONTH = 4.33;
+
+  const channelsBody = document.getElementById('channelsBody');
+
+  function addChannelRow(data) {
+    data = data || { name: '', volume: '', aht: '', automation: '', geo: 'USA' };
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" class="ch-name" value="${data.name}" placeholder="e.g. Phone"></td>
+      <td><input type="number" class="ch-volume num" min="0" step="1" value="${data.volume}"></td>
+      <td><input type="number" class="ch-aht num" min="0" step="0.1" value="${data.aht}"></td>
+      <td><input type="number" class="ch-automation num" min="0" max="100" step="1" value="${data.automation}"></td>
+      <td>
+        <select class="ch-geo">
+          ${GEOS.map(g => `<option value="${g}" ${g === data.geo ? 'selected' : ''}>${g}</option>`).join('')}
+        </select>
+      </td>
+      <td><button type="button" class="remove-row" title="Remove channel">×</button></td>
+    `;
+    tr.querySelector('.remove-row').addEventListener('click', () => tr.remove());
+    channelsBody.appendChild(tr);
+  }
+
+  DEFAULT_CHANNELS.forEach(addChannelRow);
+  document.getElementById('addRow').addEventListener('click', () => addChannelRow());
+
+  function fmtMoney(n) {
+    return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  }
+  function fmtNum(n, decimals) {
+    return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+
+  function calculate() {
+    const aiCostPerConvo = parseFloat(document.getElementById('aiCost').value) || 0;
+    const hoursPerWeek = parseFloat(document.getElementById('hoursPerWeek').value) || 0;
+    const productivityPct = parseFloat(document.getElementById('productivity').value) || 0;
+    const marginPct = parseFloat(document.getElementById('margin').value) || 0;
+
+    const rates = {
+      USA: parseFloat(document.getElementById('rateUSA').value) || 0,
+      Honduras: parseFloat(document.getElementById('rateHonduras').value) || 0,
+      Philippines: parseFloat(document.getElementById('ratePhilippines').value) || 0,
+      Europe: parseFloat(document.getElementById('rateEurope').value) || 0
+    };
+
+    const productiveMinutesPerFTE = hoursPerWeek * WEEKS_PER_MONTH * (productivityPct / 100) * 60;
+    const paidHoursPerMonth = hoursPerWeek * WEEKS_PER_MONTH;
+
+    const rows = Array.from(channelsBody.querySelectorAll('tr'));
+    const results = [];
+
+    rows.forEach(tr => {
+      const name = tr.querySelector('.ch-name').value.trim() || 'Untitled channel';
+      const volume = parseFloat(tr.querySelector('.ch-volume').value) || 0;
+      const aht = parseFloat(tr.querySelector('.ch-aht').value) || 0;
+      const automationPct = Math.min(100, Math.max(0, parseFloat(tr.querySelector('.ch-automation').value) || 0));
+      const geo = tr.querySelector('.ch-geo').value;
+
+      const automationFrac = automationPct / 100;
+      const aiConvos = volume * automationFrac;
+      const humanConvos = volume * (1 - automationFrac);
+
+      const aiCost = aiConvos * aiCostPerConvo;
+
+      const requiredMinutes = humanConvos * aht;
+      const ftesExact = productiveMinutesPerFTE > 0 ? requiredMinutes / productiveMinutesPerFTE : 0;
+      const headcount = requiredMinutes > 0 ? Math.ceil(ftesExact) : 0;
+
+      const monthlyPayPerFTE = rates[geo] * paidHoursPerMonth;
+      const billableMonthlyPerFTE = monthlyPayPerFTE * (1 + marginPct / 100);
+      const humanCost = headcount * billableMonthlyPerFTE;
+
+      const total = aiCost + humanCost;
+
+      results.push({ name, geo, aiConvos, humanConvos, ftesExact, headcount, aiCost, humanCost, total });
+    });
+
+    renderResults(results);
+  }
+
+  function renderResults(results) {
+    const totalAI = results.reduce((s, r) => s + r.aiCost, 0);
+    const totalHuman = results.reduce((s, r) => s + r.humanCost, 0);
+    const totalHeadcount = results.reduce((s, r) => s + r.headcount, 0);
+    const grandTotal = totalAI + totalHuman;
+
+    document.getElementById('statTotal').textContent = fmtMoney(grandTotal);
+    document.getElementById('statAI').textContent = fmtMoney(totalAI);
+    document.getElementById('statHuman').textContent = fmtMoney(totalHuman);
+    document.getElementById('statHeadcount').textContent = totalHeadcount.toLocaleString('en-US');
+
+    const maxTotal = Math.max(1, ...results.map(r => r.total));
+    const barChart = document.getElementById('barChart');
+    barChart.innerHTML = results.map(r => {
+      const aiPct = (r.aiCost / maxTotal) * 100;
+      const humanPct = (r.humanCost / maxTotal) * 100;
+      return `
+        <div class="bar-row">
+          <div class="bar-name">${escapeHtml(r.name)}</div>
+          <div class="bar-track">
+            <div class="seg-ai" style="width:${aiPct}%"></div>
+            <div class="seg-human" style="width:${humanPct}%"></div>
+          </div>
+          <div class="bar-total">${fmtMoney(r.total)}</div>
+        </div>
+      `;
+    }).join('');
+
+    const resultsBody = document.getElementById('resultsBody');
+    resultsBody.innerHTML = results.map(r => `
+      <tr>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.geo)}</td>
+        <td class="num">${fmtNum(r.aiConvos, 0)}</td>
+        <td class="num">${fmtNum(r.humanConvos, 0)}</td>
+        <td class="num">${fmtNum(r.ftesExact, 2)}</td>
+        <td class="num">${r.headcount}</td>
+        <td class="num">${fmtMoney(r.aiCost)}</td>
+        <td class="num">${fmtMoney(r.humanCost)}</td>
+        <td class="num">${fmtMoney(r.total)}</td>
+      </tr>
+    `).join('') + `
+      <tr style="font-weight:700; border-top:2px solid var(--baseline);">
+        <td colspan="6">Total</td>
+        <td class="num">${fmtMoney(totalAI)}</td>
+        <td class="num">${fmtMoney(totalHuman)}</td>
+        <td class="num">${fmtMoney(grandTotal)}</td>
+      </tr>
+    `;
+
+    document.getElementById('results').hidden = false;
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  document.getElementById('calcBtn').addEventListener('click', calculate);
+})();
+</script>
+</body>
+</html>
